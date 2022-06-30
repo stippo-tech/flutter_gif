@@ -1,62 +1,33 @@
-# flutter_gifimage
+# gif
 
 We should know that in order to achieve Gif in flutter, we can use Image, but we have no way to manipulate Gif, for example: change its speed, control it has been playing in a frame,
- in which frame range loop. These problems can be solved by this widget,it also help you contain gif cache,avoid load frame every time.
-
-# Screenshots
-
-![](arts/gif.gif)
+ in which frame range loop. These problems can be solved by this widget, it also help you contain gif cache, avoid load frame every time.
 
 # Usage(Simple)
   add in pubspec
 
    ```dart
-
-        flutter_gifimage: ^1.0.0
-
+        gif: ^1.0.0
    ```
 
  simple usage
 
  ```dart
-     GifController controller= GifController(vsync: this);
+     AnimationController _gifController = AnimationController(vsync: this, duration: const Duration(seconds: 3));
 
-
-     GifImage(
-          controller: controller,
+     Gif(
           image: AssetImage("images/animate.gif"),
-     )
-
+          controller: _gifController,
+          placeholder: (context) => const Text('Loading...')
+          onFetchCompleted: () {
+               _gifController.reset();
+               _gifController.forward();
+          },
+     ),
  ```
-
- list the most common operate in GifController:
-
-
- ```dart
- // loop from 0 frame to 29 frame
- controller.repeat(min:0,max:29,period:Duration(millseconds:300));
-
- // jumpTo thrid frame(index from 0)
- controller.value = 0;
-
- // from current frame to 26 frame
- controller.animateTo(26);
-
- ```
-
- If you need to preCache gif,try this
-
- ```dart
- // put imageProvider
- fetchGif(AssetImage("images/animate.gif"));
-
- ```
-
-
-
 
 # Thanks
-* [gif_ani](https://github.com/hyz1992/gif_ani)  (thanks for giving me idea)
+* [flutter_gifimage](https://github.com/peng8350/flutter_gifimage)  
 
 # License
 
