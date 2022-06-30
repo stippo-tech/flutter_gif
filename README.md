@@ -1,19 +1,23 @@
 # gif
 
+## Overview
+
 We should know that in order to achieve Gif in flutter, we can use Image, but we have no way to manipulate Gif, for example: change its speed, control it has been playing in a frame,
  in which frame range loop. These problems can be solved by this widget, it also help you contain gif cache, avoid load frame every time.
 
-# Usage(Simple)
-  add in pubspec
+## Example
 
-   ```dart
-        gif: ^1.0.0
-   ```
+Add in pubspec.yaml
 
- simple usage
+```dart
+     gif: ^1.0.0
+```
+
+ Load a gif asynchronously and display a text placeholder during loading.<br>
+ When the gif is loaded reset the controller and run the gif to the end.
 
  ```dart
-     AnimationController _gifController = AnimationController(vsync: this, duration: const Duration(seconds: 3));
+     AnimationController _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3));
 
      Gif(
           image: AssetImage("images/animate.gif"),
