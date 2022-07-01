@@ -7,12 +7,6 @@ We should know that in order to achieve Gif in flutter, we can use Image, but we
 
 ## Example
 
-Add in pubspec.yaml
-
-```dart
-     gif: ^1.0.0
-```
-
  Load a gif asynchronously and display a text placeholder during loading.<br>
  When the gif is loaded reset the controller and run the gif to the end.
 
