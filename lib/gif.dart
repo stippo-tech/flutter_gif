@@ -60,7 +60,9 @@ Future<List<ImageInfo>> _fetchFrames(ImageProvider provider) async {
     bytes = provider.bytes;
   }
 
-  Codec codec = await PaintingBinding.instance.instantiateImageCodec(bytes);
+  // Removing ! gives compile time error on Flutter 2.5.3
+  // ignore: unnecessary_non_null_assertion
+  Codec codec = await PaintingBinding.instance!.instantiateImageCodec(bytes);
   List<ImageInfo> infos = [];
 
   for (int i = 0; i < codec.frameCount; i++) {
@@ -91,12 +93,21 @@ Future<List<ImageInfo>> _fetchFrames(ImageProvider provider) async {
 ///
 @immutable
 class Gif extends StatefulWidget {
+  /// Rendered gifs cache.
   static GifCache cache = GifCache();
 
+  /// Called when gif frames fetch is completed.
   final VoidCallback? onFetchCompleted;
+
+  /// Widget rendered when gif frames fetch is still not completed.
   final Widget Function(BuildContext context)? placeholder;
+
+  /// Gif playback controller.
   final AnimationController controller;
+
+  /// [ImageProvider] of this gif. Like [NetworkImage], [AssetImage], [MemoryImage]
   final ImageProvider image;
+
   final double? width;
   final double? height;
   final Color? color;
@@ -133,14 +144,16 @@ class Gif extends StatefulWidget {
 }
 
 ///
-/// Works as a cache system for [Gif] and all the [ImageInfo] of rendered images.
+/// Works as a cache system for [Gif] and stores all the [ImageInfo] of rendered images.
 ///
 @immutable
 class GifCache {
   final Map<String, List<ImageInfo>> caches = {};
 
+  /// Clears all the stored gifs from the cache.
   void clear() => caches.clear();
 
+  /// Removes single gif from the cache.
   bool evict(Object key) => caches.remove(key) != null ? true : false;
 }
 
