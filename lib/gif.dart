@@ -27,54 +27,6 @@ HttpClient get _httpClient {
   return client;
 }
 
-/// Fetches the single gif frames and saves them into the [GifCache] of [Gif]
-Future<List<ImageInfo>> _fetchFrames(ImageProvider provider) async {
-  String key = provider is NetworkImage
-      ? provider.url
-      : provider is AssetImage
-          ? provider.assetName
-          : provider is MemoryImage
-              ? provider.bytes.toString()
-              : "";
-
-  if (Gif.cache.caches.containsKey(key)) {
-    return Gif.cache.caches[key]!;
-  }
-
-  late final Uint8List bytes;
-
-  if (provider is NetworkImage) {
-    final Uri resolved = Uri.base.resolve(provider.url);
-    final HttpClientRequest request = await _httpClient.getUrl(resolved);
-    provider.headers?.forEach(
-        (String name, String value) => request.headers.add(name, value));
-    final HttpClientResponse response = await request.close();
-    bytes = await consolidateHttpClientResponseBytes(response);
-  } else if (provider is AssetImage) {
-    AssetBundleImageKey key =
-        await provider.obtainKey(const ImageConfiguration());
-    bytes = (await key.bundle.load(key.name)).buffer.asUint8List();
-  } else if (provider is FileImage) {
-    bytes = await provider.file.readAsBytes();
-  } else if (provider is MemoryImage) {
-    bytes = provider.bytes;
-  }
-
-  // Removing ! gives compile time error on Flutter 2.5.3
-  // ignore: unnecessary_non_null_assertion
-  Codec codec = await PaintingBinding.instance!.instantiateImageCodec(bytes);
-  List<ImageInfo> infos = [];
-
-  for (int i = 0; i < codec.frameCount; i++) {
-    FrameInfo frameInfo = await codec.getNextFrame();
-    infos.add(ImageInfo(image: frameInfo.image));
-  }
-
-  Gif.cache.caches.putIfAbsent(key, () => infos);
-
-  return infos;
-}
-
 ///
 /// A widget that renders a Gif controlled with [AnimationController].
 ///
@@ -84,6 +36,12 @@ Future<List<ImageInfo>> _fetchFrames(ImageProvider provider) async {
 ///
 /// If you want to play the gif as soon as possible, call
 /// [AnimationController] `.forward()` in the [onFetchCompleted] callback.
+///
+/// [fps] frames per second at which this should be rendered.
+///  - [controller.duration] must be null in order to set this.
+///  - Changing [fps] pauses the playback.
+///
+/// [autostart] start this gif as soon as possible. Defaults to true.
 ///
 /// [placeholder] renders this widget during the gif frames fetch. Use this if
 /// you want to prevent the layout jumping around.
@@ -96,17 +54,23 @@ class Gif extends StatefulWidget {
   /// Rendered gifs cache.
   static GifCache cache = GifCache();
 
-  /// Called when gif frames fetch is completed.
-  final VoidCallback? onFetchCompleted;
-
-  /// Widget rendered when gif frames fetch is still not completed.
-  final Widget Function(BuildContext context)? placeholder;
-
-  /// Gif playback controller.
-  final AnimationController controller;
-
   /// [ImageProvider] of this gif. Like [NetworkImage], [AssetImage], [MemoryImage]
   final ImageProvider image;
+
+  /// This playback controller.
+  final AnimationController? controller;
+
+  /// Frames per second at which this runs.
+  final int? fps;
+
+  /// Start the gif as soon as possible.
+  final bool autostart;
+
+  /// Rendered when gif frames fetch is still not completed.
+  final Widget Function(BuildContext context)? placeholder;
+
+  /// Called when gif frames fetch is completed.
+  final VoidCallback? onFetchCompleted;
 
   final double? width;
   final double? height;
@@ -120,16 +84,19 @@ class Gif extends StatefulWidget {
   final String? semanticLabel;
   final bool excludeFromSemantics;
 
-  const Gif({
+  /// Creates a widget that displays a controllable gif.
+  Gif({
     Key? key,
     required this.image,
-    required this.controller,
+    this.controller,
+    this.fps,
+    this.autostart = true,
+    this.placeholder,
+    this.onFetchCompleted,
     this.semanticLabel,
     this.excludeFromSemantics = false,
     this.width,
     this.height,
-    this.placeholder,
-    this.onFetchCompleted,
     this.color,
     this.colorBlendMode,
     this.fit,
@@ -137,7 +104,9 @@ class Gif extends StatefulWidget {
     this.repeat = ImageRepeat.noRepeat,
     this.centerSlice,
     this.matchTextDirection = false,
-  }) : super(key: key);
+  })  : assert(controller?.duration != null || fps != null,
+            '[controller] duration or [fps] must be specified'),
+        super(key: key);
 
   @override
   State<Gif> createState() => _GifState();
@@ -157,7 +126,9 @@ class GifCache {
   bool evict(Object key) => caches.remove(key) != null ? true : false;
 }
 
-class _GifState extends State<Gif> {
+class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
   /// List of [ImageInfo] of every frame of this gif.
   List<ImageInfo> _frames = [];
 
@@ -197,31 +168,53 @@ class _GifState extends State<Gif> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadFrames();
+    _loadFrames().then((value) {
+      if (widget.autostart == true) {
+        _controller
+          ..reset()
+          ..forward();
+      }
+    });
   }
 
   @override
   void didUpdateWidget(Gif oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.image != oldWidget.image) {
-      _loadFrames();
-    }
     if (widget.controller != oldWidget.controller) {
-      oldWidget.controller.removeListener(_listener);
-      widget.controller.addListener(_listener);
+      oldWidget.controller?.removeListener(_listener);
+      _controller = widget.controller ?? AnimationController(vsync: this);
+      _controller.addListener(_listener);
+    }
+    if (widget.fps != oldWidget.fps) {
+      _controller.duration = Duration(
+        milliseconds: (_frames.length / widget.fps! * 1000).round(),
+      );
+    }
+    if (widget.image != oldWidget.image) {
+      _loadFrames().then((value) {
+        if (widget.autostart == true) {
+          _controller
+            ..reset()
+            ..forward();
+        }
+      });
     }
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_listener);
+    _controller.removeListener(_listener);
+    if (widget.controller == null) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_listener);
+    _controller = widget.controller ?? AnimationController(vsync: this);
+    _controller.addListener(_listener);
   }
 
   /// Calculates the [_frameIndex] based on the [AnimationController] value.
@@ -233,7 +226,7 @@ class _GifState extends State<Gif> {
       setState(() {
         _frameIndex = _frames.isEmpty
             ? 0
-            : ((_frames.length - 1) * widget.controller.value).floor();
+            : ((_frames.length - 1) * _controller.value).floor();
       });
     }
   }
@@ -241,14 +234,67 @@ class _GifState extends State<Gif> {
   /// Fetches the frames with [_fetchFrames] and saves them into [_frames].
   ///
   /// When [_frames] is updated [onFetchCompleted] is called.
-  void _loadFrames() async {
+  Future<void> _loadFrames() async {
     List<ImageInfo> frames = await _fetchFrames(widget.image);
     if (!mounted) return;
     setState(() {
       _frames = frames;
+      if (widget.fps != null) {
+        _controller.duration = Duration(
+          milliseconds: (_frames.length / widget.fps! * 1000).round(),
+        );
+      }
       if (widget.onFetchCompleted != null) {
         widget.onFetchCompleted!();
       }
     });
+  }
+
+  /// Fetches the single gif frames and saves them into the [GifCache] of [Gif]
+  static Future<List<ImageInfo>> _fetchFrames(ImageProvider provider) async {
+    String key = provider is NetworkImage
+        ? provider.url
+        : provider is AssetImage
+            ? provider.assetName
+            : provider is MemoryImage
+                ? provider.bytes.toString()
+                : "";
+
+    if (Gif.cache.caches.containsKey(key)) {
+      return Gif.cache.caches[key]!;
+    }
+
+    late final Uint8List bytes;
+
+    if (provider is NetworkImage) {
+      final Uri resolved = Uri.base.resolve(provider.url);
+      final HttpClientRequest request = await _httpClient.getUrl(resolved);
+      provider.headers?.forEach(
+          (String name, String value) => request.headers.add(name, value));
+      final HttpClientResponse response = await request.close();
+      bytes = await consolidateHttpClientResponseBytes(response);
+    } else if (provider is AssetImage) {
+      AssetBundleImageKey key =
+          await provider.obtainKey(const ImageConfiguration());
+      bytes = (await key.bundle.load(key.name)).buffer.asUint8List();
+    } else if (provider is FileImage) {
+      bytes = await provider.file.readAsBytes();
+    } else if (provider is MemoryImage) {
+      bytes = provider.bytes;
+    }
+
+    // Removing ! gives compile time error on Flutter 2.5.3
+    // ignore: unnecessary_non_null_assertion
+    Codec codec = await PaintingBinding.instance!.instantiateImageCodec(bytes);
+    List<ImageInfo> infos = [];
+
+    for (int i = 0; i < codec.frameCount; i++) {
+      FrameInfo frameInfo = await codec.getNextFrame();
+      infos.add(ImageInfo(image: frameInfo.image));
+    }
+
+    Gif.cache.caches.putIfAbsent(key, () => infos);
+
+    return infos;
   }
 }
