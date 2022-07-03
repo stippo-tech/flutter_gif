@@ -1,3 +1,6 @@
+## 1.1.0+1
+* fixed description.
+
 ## 1.1.0
 * added `fps` and `autostart` parameters.
 
