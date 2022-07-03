@@ -28,26 +28,7 @@ HttpClient get _httpClient {
 }
 
 ///
-/// A widget that renders a Gif controlled with [AnimationController].
-///
-/// The gif duration is controlled by the [Duration] of [AnimationController].
-/// If you want to respect the original gif duration you could calculate the time
-/// by using the framerate of the gif.
-///
-/// If you want to play the gif as soon as possible, call
-/// [AnimationController] `.forward()` in the [onFetchCompleted] callback.
-///
-/// [fps] frames per second at which this should be rendered.
-///  - [controller.duration] must be null in order to set this.
-///  - Changing [fps] pauses the playback.
-///
-/// [autostart] start this gif as soon as possible. Defaults to true.
-///
-/// [placeholder] renders this widget during the gif frames fetch. Use this if
-/// you want to prevent the layout jumping around.
-///
-/// [onFetchCompleted] is called when the frames fetch finishes and the gif can be
-/// rendered.
+/// A widget that renders a Gif controllable with [AnimationController].
 ///
 @immutable
 class Gif extends StatefulWidget {
@@ -85,6 +66,16 @@ class Gif extends StatefulWidget {
   final bool excludeFromSemantics;
 
   /// Creates a widget that displays a controllable gif.
+  ///
+  /// [fps] frames per second at which this should be rendered.
+  /// If this is set, playback is paused and [controller.duration] is replaced.
+  ///
+  /// [autostart] start this gif as soon as possible. Defaults to true.
+  ///
+  /// [placeholder] this widget is rendered during the gif frames fetch.
+  ///
+  /// [onFetchCompleted] is called when the frames fetch finishes and the gif can be
+  /// rendered.
   Gif({
     Key? key,
     required this.image,
@@ -106,6 +97,7 @@ class Gif extends StatefulWidget {
     this.matchTextDirection = false,
   })  : assert(controller?.duration != null || fps != null,
             '[controller] duration or [fps] must be specified'),
+        assert(fps != null && fps > 0, 'fps must be greater than 0'),
         super(key: key);
 
   @override
