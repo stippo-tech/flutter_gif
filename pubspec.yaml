@@ -1,6 +1,6 @@
 name: gif
-description: Fork of flutter_gifimage that uses standard animation controllers
-version: 1.0.1+2
+description: Control gifs using animation controllers.
+version: 1.1.0
 homepage: https://github.com/pierluigizagaria/flutter_gif
 
 environment:

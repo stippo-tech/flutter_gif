@@ -1,3 +1,6 @@
+## 1.1.0
+* added `fps` and `autostart` parameters.
+
 ## 1.0.1+2
 * improved documentation and fixed flutter 2.5.3 compile time error.
 
