@@ -97,7 +97,7 @@ class Gif extends StatefulWidget {
     this.matchTextDirection = false,
   })  : assert(controller?.duration != null || fps != null,
             '[controller] duration or [fps] must be specified'),
-        assert(fps != null && fps > 0, 'fps must be greater than 0'),
+        assert(fps == null || fps > 0, 'fps must be greater than 0'),
         super(key: key);
 
   @override
