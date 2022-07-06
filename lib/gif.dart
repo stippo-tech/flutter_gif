@@ -32,7 +32,7 @@ enum Autostart {
   /// Don't start.
   no,
 
-  /// Run once.
+  /// Run once everytime a new gif is loaded.
   once,
 
   /// Loop playback.
@@ -51,10 +51,13 @@ class Gif extends StatefulWidget {
   final ImageProvider image;
 
   /// This playback controller.
-  final AnimationController? controller;
+  final GifController? controller;
 
   /// Frames per second at which this runs.
   final int? fps;
+
+  /// Whole playback duration.
+  final Duration? duration;
 
   /// If and how to start this gif.
   final Autostart autostart;
@@ -96,6 +99,7 @@ class Gif extends StatefulWidget {
     required this.image,
     this.controller,
     this.fps,
+    this.duration,
     this.autostart = Autostart.no,
     this.placeholder,
     this.onFetchCompleted,
@@ -110,7 +114,11 @@ class Gif extends StatefulWidget {
     this.repeat = ImageRepeat.noRepeat,
     this.centerSlice,
     this.matchTextDirection = false,
-  })  : assert(fps == null || fps > 0, 'fps must be greater than 0'),
+  })  : assert(
+          fps == null || duration == null,
+          'only one of the two can be set [fps] [duration]',
+        ),
+        assert(fps == null || fps > 0, 'fps must be greater than 0'),
         super(key: key);
 
   @override
@@ -132,6 +140,20 @@ class GifCache {
 }
 
 ///
+/// Controller that wraps [AnimationController] and protects the [duration] parameter.
+/// This falls into a design choice to keep the duration control to the [Gif]
+/// widget.
+///
+class GifController extends AnimationController {
+  @protected
+  Duration? duration;
+
+  GifController({
+    required TickerProvider vsync,
+  }) : super(vsync: vsync);
+}
+
+///
 /// Stores all the [ImageInfo] and duration of a gif.
 ///
 @immutable
@@ -146,7 +168,7 @@ class GifInfo {
 }
 
 class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late final GifController _controller;
 
   /// List of [ImageInfo] of every frame of this gif.
   List<ImageInfo> _frames = [];
@@ -187,7 +209,7 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadFrames().then((value) => _start());
+    _loadFrames().then((value) => _autostart());
   }
 
   @override
@@ -195,19 +217,20 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
     super.didUpdateWidget(oldWidget);
     if (widget.controller != oldWidget.controller) {
       oldWidget.controller?.removeListener(_listener);
-      _controller = widget.controller ?? AnimationController(vsync: this);
+      _controller = widget.controller ?? GifController(vsync: this);
       _controller.addListener(_listener);
     }
-    if (widget.image != oldWidget.image) {
-      _loadFrames().then((value) => _start());
-    }
-    if (widget.fps != oldWidget.fps) {
-      _controller.duration = Duration(
-        milliseconds: (_frames.length / widget.fps! * 1000).round(),
-      );
+    if ((widget.image != oldWidget.image) ||
+        (widget.fps != oldWidget.fps) ||
+        (widget.duration != oldWidget.duration)) {
+      _loadFrames().then((value) {
+        if (widget.image != oldWidget.image) {
+          _autostart();
+        }
+      });
     }
     if ((widget.autostart != oldWidget.autostart)) {
-      _start();
+      _autostart();
     }
   }
 
@@ -223,8 +246,20 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? AnimationController(vsync: this);
+    _controller = widget.controller ?? GifController(vsync: this);
     _controller.addListener(_listener);
+  }
+
+  /// Start this gif according to [widget.autostart] and [widget.loop].
+  void _autostart() {
+    if (widget.autostart != Autostart.no) {
+      _controller..reset();
+      if (widget.autostart == Autostart.loop) {
+        _controller.repeat();
+      } else {
+        _controller.forward();
+      }
+    }
   }
 
   /// Get unique image string from [ImageProvider]
@@ -269,25 +304,11 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
       _controller.duration = widget.fps != null
           ? Duration(
               milliseconds: (_frames.length / widget.fps! * 1000).round())
-          : _controller.duration != null
-              ? _controller.duration
-              : gif.duration;
+          : widget.duration ?? gif.duration;
       if (widget.onFetchCompleted != null) {
         widget.onFetchCompleted!();
       }
     });
-  }
-
-  /// Start this gif according to [widget.autostart] and [widget.loop].
-  void _start() {
-    if (widget.autostart != Autostart.no) {
-      _controller..reset();
-      if (widget.autostart == Autostart.loop) {
-        _controller.repeat();
-      } else {
-        _controller.forward();
-      }
-    }
   }
 
   /// Fetches the single gif frames and saves them into the [GifCache] of [Gif]
