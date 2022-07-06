@@ -27,6 +27,18 @@ HttpClient get _httpClient {
   return client;
 }
 
+/// How to auto start the gif.
+enum Autostart {
+  /// Don't start.
+  no,
+
+  /// Run once.
+  once,
+
+  /// Loop playback.
+  loop,
+}
+
 ///
 /// A widget that renders a Gif controllable with [AnimationController].
 ///
@@ -44,8 +56,8 @@ class Gif extends StatefulWidget {
   /// Frames per second at which this runs.
   final int? fps;
 
-  /// Start the gif as soon as possible.
-  final bool autostart;
+  /// If and how to start this gif.
+  final Autostart autostart;
 
   /// Rendered when gif frames fetch is still not completed.
   final Widget Function(BuildContext context)? placeholder;
@@ -70,18 +82,21 @@ class Gif extends StatefulWidget {
   /// [fps] frames per second at which this should be rendered.
   /// If this is set, playback is paused and [controller.duration] is replaced.
   ///
-  /// [autostart] start this gif as soon as possible. Defaults to true.
+  /// [autostart] if and how to start this gif. Defaults to [Autostart.no].
   ///
   /// [placeholder] this widget is rendered during the gif frames fetch.
   ///
   /// [onFetchCompleted] is called when the frames fetch finishes and the gif can be
   /// rendered.
+  ///
+  /// If [controller.duration] and [fps] are not specified, the original gif
+  /// framerate will be used.
   Gif({
     Key? key,
     required this.image,
     this.controller,
     this.fps,
-    this.autostart = true,
+    this.autostart = Autostart.no,
     this.placeholder,
     this.onFetchCompleted,
     this.semanticLabel,
@@ -95,9 +110,7 @@ class Gif extends StatefulWidget {
     this.repeat = ImageRepeat.noRepeat,
     this.centerSlice,
     this.matchTextDirection = false,
-  })  : assert(controller?.duration != null || fps != null,
-            '[controller] duration or [fps] must be specified'),
-        assert(fps == null || fps > 0, 'fps must be greater than 0'),
+  })  : assert(fps == null || fps > 0, 'fps must be greater than 0'),
         super(key: key);
 
   @override
@@ -105,17 +118,31 @@ class Gif extends StatefulWidget {
 }
 
 ///
-/// Works as a cache system for [Gif] and stores all the [ImageInfo] of rendered images.
+/// Works as a cache system for already fetched [GifInfo].
 ///
 @immutable
 class GifCache {
-  final Map<String, List<ImageInfo>> caches = {};
+  final Map<String, GifInfo> caches = {};
 
   /// Clears all the stored gifs from the cache.
   void clear() => caches.clear();
 
   /// Removes single gif from the cache.
   bool evict(Object key) => caches.remove(key) != null ? true : false;
+}
+
+///
+/// Stores all the [ImageInfo] and duration of a gif.
+///
+@immutable
+class GifInfo {
+  final List<ImageInfo> frames;
+  final Duration duration;
+
+  GifInfo({
+    required this.frames,
+    required this.duration,
+  });
 }
 
 class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
@@ -160,13 +187,7 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadFrames().then((value) {
-      if (widget.autostart == true) {
-        _controller
-          ..reset()
-          ..forward();
-      }
-    });
+    _loadFrames().then((value) => _start());
   }
 
   @override
@@ -177,19 +198,16 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
       _controller = widget.controller ?? AnimationController(vsync: this);
       _controller.addListener(_listener);
     }
+    if (widget.image != oldWidget.image) {
+      _loadFrames().then((value) => _start());
+    }
     if (widget.fps != oldWidget.fps) {
       _controller.duration = Duration(
         milliseconds: (_frames.length / widget.fps! * 1000).round(),
       );
     }
-    if (widget.image != oldWidget.image) {
-      _loadFrames().then((value) {
-        if (widget.autostart == true) {
-          _controller
-            ..reset()
-            ..forward();
-        }
-      });
+    if ((widget.autostart != oldWidget.autostart)) {
+      _start();
     }
   }
 
@@ -207,6 +225,17 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
     super.initState();
     _controller = widget.controller ?? AnimationController(vsync: this);
     _controller.addListener(_listener);
+  }
+
+  /// Get unique image string from [ImageProvider]
+  String _getImageKey(ImageProvider provider) {
+    return provider is NetworkImage
+        ? provider.url
+        : provider is AssetImage
+            ? provider.assetName
+            : provider is MemoryImage
+                ? provider.bytes.toString()
+                : "";
   }
 
   /// Calculates the [_frameIndex] based on the [AnimationController] value.
@@ -227,35 +256,42 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
   ///
   /// When [_frames] is updated [onFetchCompleted] is called.
   Future<void> _loadFrames() async {
-    List<ImageInfo> frames = await _fetchFrames(widget.image);
     if (!mounted) return;
+
+    GifInfo gif = Gif.cache.caches.containsKey(_getImageKey(widget.image))
+        ? Gif.cache.caches[_getImageKey(widget.image)]!
+        : await _fetchFrames(widget.image);
+
+    Gif.cache.caches.putIfAbsent(_getImageKey(widget.image), () => gif);
+
     setState(() {
-      _frames = frames;
-      if (widget.fps != null) {
-        _controller.duration = Duration(
-          milliseconds: (_frames.length / widget.fps! * 1000).round(),
-        );
-      }
+      _frames = gif.frames;
+      _controller.duration = widget.fps != null
+          ? Duration(
+              milliseconds: (_frames.length / widget.fps! * 1000).round())
+          : _controller.duration != null
+              ? _controller.duration
+              : gif.duration;
       if (widget.onFetchCompleted != null) {
         widget.onFetchCompleted!();
       }
     });
   }
 
-  /// Fetches the single gif frames and saves them into the [GifCache] of [Gif]
-  static Future<List<ImageInfo>> _fetchFrames(ImageProvider provider) async {
-    String key = provider is NetworkImage
-        ? provider.url
-        : provider is AssetImage
-            ? provider.assetName
-            : provider is MemoryImage
-                ? provider.bytes.toString()
-                : "";
-
-    if (Gif.cache.caches.containsKey(key)) {
-      return Gif.cache.caches[key]!;
+  /// Start this gif according to [widget.autostart] and [widget.loop].
+  void _start() {
+    if (widget.autostart != Autostart.no) {
+      _controller..reset();
+      if (widget.autostart == Autostart.loop) {
+        _controller.repeat();
+      } else {
+        _controller.forward();
+      }
     }
+  }
 
+  /// Fetches the single gif frames and saves them into the [GifCache] of [Gif]
+  static Future<GifInfo> _fetchFrames(ImageProvider provider) async {
     late final Uint8List bytes;
 
     if (provider is NetworkImage) {
@@ -279,14 +315,14 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
     // ignore: unnecessary_non_null_assertion
     Codec codec = await PaintingBinding.instance!.instantiateImageCodec(bytes);
     List<ImageInfo> infos = [];
+    Duration duration = Duration();
 
     for (int i = 0; i < codec.frameCount; i++) {
       FrameInfo frameInfo = await codec.getNextFrame();
       infos.add(ImageInfo(image: frameInfo.image));
+      duration += frameInfo.duration;
     }
 
-    Gif.cache.caches.putIfAbsent(key, () => infos);
-
-    return infos;
+    return GifInfo(frames: infos, duration: duration);
   }
 }
