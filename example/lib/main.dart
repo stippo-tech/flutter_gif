@@ -92,24 +92,26 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             ListView(
               clipBehavior: Clip.none,
               children: <Widget>[
-                const Text('AssetImage (15 fps)'),
+                const Text('AssetImage (original fps, autostart, loop)'),
                 Gif(
-                  fps: 15,
+                  autostart: Autostart.loop,
                   placeholder: (context) =>
                       const Center(child: CircularProgressIndicator()),
                   image: const AssetImage('assets/rick.gif'),
                 ),
-                const Text('NetworkImage (30 fps)'),
+                const Text('NetworkImage (30 fps, autostart)'),
                 Gif(
                   fps: 30,
+                  autostart: Autostart.once,
                   placeholder: (context) =>
                       const Center(child: CircularProgressIndicator()),
                   image: const NetworkImage(
                       'https://i.giphy.com/media/Ju7l5y9osyymQ/giphy.webp'),
                 ),
-                const Text('NetworkImage (20 seconds)'),
+                const Text('NetworkImage (20 seconds, autostart)'),
                 Gif(
                   controller: controller2,
+                  autostart: Autostart.once,
                   placeholder: (context) =>
                       const Center(child: CircularProgressIndicator()),
                   image: const NetworkImage(
@@ -122,7 +124,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 Gif(
                   controller: controller3,
                   fps: _fps,
-                  autostart: false,
                   image: const AssetImage('assets/rick.gif'),
                 ),
                 AnimatedBuilder(
