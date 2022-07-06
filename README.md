@@ -15,13 +15,13 @@ AnimationController _controller = AnimationController(vsync: this, duration: con
 
 Gif(
      image: AssetImage("images/animate.gif"),
-     controller: _controller,
-     //fps: 30, // _controller duration is ignored if this is set.
-     autostart: false,
+     controller: _controller, // if _controller.duration and fps is null, original gif fps will be used.
+     //fps: 30,               // _controller duration is replaced if this is set.
+     autostart: Autostart.no,
      placeholder: (context) => const Text('Loading...'),
      onFetchCompleted: () {
-          _gifController.reset();
-          _gifController.forward();
+          _controller.reset();
+          _controller.forward();
      },
 ),
  ```
