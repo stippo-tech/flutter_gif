@@ -1,3 +1,7 @@
+## 2.1.0
+* added `duration` parameter.
+* changed `controller` type from AnimationController to GifController.
+
 ## 2.0.0
 * changed `autostart` parameter to enum.
 * gif plays with original fps if AnimationController duration and fps parameter are not specified.

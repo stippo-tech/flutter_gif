@@ -83,7 +83,8 @@ class Gif extends StatefulWidget {
   /// Creates a widget that displays a controllable gif.
   ///
   /// [fps] frames per second at which this should be rendered.
-  /// If this is set, playback is paused and [controller.duration] is replaced.
+  ///
+  /// [duration] whole playback duration for this gif.
   ///
   /// [autostart] if and how to start this gif. Defaults to [Autostart.no].
   ///
@@ -92,6 +93,7 @@ class Gif extends StatefulWidget {
   /// [onFetchCompleted] is called when the frames fetch finishes and the gif can be
   /// rendered.
   ///
+  /// Only one of the two can be set: [fps] or [duration]
   /// If [controller.duration] and [fps] are not specified, the original gif
   /// framerate will be used.
   Gif({

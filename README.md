@@ -11,12 +11,13 @@ We should know that in order to achieve Gif in flutter, we can use Image, but we
  When the gif is loaded reset the controller and run the gif to the end.
 
  ```dart
-AnimationController _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3));
+GifController _controller = GifController(vsync: this);
 
 Gif(
      image: AssetImage("images/animate.gif"),
-     controller: _controller, // if _controller.duration and fps is null, original gif fps will be used.
-     //fps: 30,               // _controller duration is replaced if this is set.
+     controller: _controller, // if duration and fps is null, original gif fps will be used.
+     //fps: 30,               
+     //duration: const Duration(seconds: 3),
      autostart: Autostart.no,
      placeholder: (context) => const Text('Loading...'),
      onFetchCompleted: () {
