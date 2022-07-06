@@ -49,15 +49,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
-  late final AnimationController controller1, controller2, controller3;
+  late final GifController controller1, controller2, controller3;
   int _fps = 30;
 
   @override
   void initState() {
-    controller1 = AnimationController(vsync: this);
-    controller2 =
-        AnimationController(vsync: this, duration: const Duration(seconds: 20));
-    controller3 = AnimationController(vsync: this);
+    controller1 = GifController(vsync: this);
+    controller2 = GifController(vsync: this);
+    controller3 = GifController(vsync: this);
     super.initState();
   }
 
@@ -92,14 +91,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             ListView(
               clipBehavior: Clip.none,
               children: <Widget>[
-                const Text('AssetImage (original fps, autostart, loop)'),
+                const Text('AssetImage (original fps, loop)'),
                 Gif(
                   autostart: Autostart.loop,
                   placeholder: (context) =>
                       const Center(child: CircularProgressIndicator()),
                   image: const AssetImage('assets/rick.gif'),
                 ),
-                const Text('NetworkImage (30 fps, autostart)'),
+                const Text('NetworkImage (30 fps, once)'),
                 Gif(
                   fps: 30,
                   autostart: Autostart.once,
@@ -108,9 +107,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                   image: const NetworkImage(
                       'https://i.giphy.com/media/Ju7l5y9osyymQ/giphy.webp'),
                 ),
-                const Text('NetworkImage (20 seconds, autostart)'),
+                const Text('NetworkImage (20 seconds, once)'),
                 Gif(
                   controller: controller2,
+                  duration: const Duration(seconds: 20),
                   autostart: Autostart.once,
                   placeholder: (context) =>
                       const Center(child: CircularProgressIndicator()),
