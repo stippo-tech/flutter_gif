@@ -299,6 +299,8 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
         ? Gif.cache.caches[_getImageKey(widget.image)]!
         : await _fetchFrames(widget.image);
 
+    if (!mounted) return;
+
     Gif.cache.caches.putIfAbsent(_getImageKey(widget.image), () => gif);
 
     setState(() {
