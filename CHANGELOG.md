@@ -1,3 +1,6 @@
+## 2.1.1
+* fixed `setState()` call after `dispose()`
+
 ## 2.1.0
 * added `duration` parameter.
 * changed `controller` type from AnimationController to GifController.
