@@ -1,3 +1,6 @@
+## 2.1.2
+* fixed `GifController` access after `dispose()`
+
 ## 2.1.1
 * fixed `setState()` call after `dispose()`
 
