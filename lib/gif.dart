@@ -254,7 +254,7 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
 
   /// Start this gif according to [widget.autostart] and [widget.loop].
   void _autostart() {
-    if (widget.autostart != Autostart.no) {
+    if (mounted && widget.autostart != Autostart.no) {
       _controller..reset();
       if (widget.autostart == Autostart.loop) {
         _controller.repeat();
