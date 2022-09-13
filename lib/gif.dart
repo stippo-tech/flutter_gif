@@ -8,7 +8,6 @@
 library gif;
 
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -79,6 +78,7 @@ class Gif extends StatefulWidget {
   final bool matchTextDirection;
   final String? semanticLabel;
   final bool excludeFromSemantics;
+  final bool useCache;
 
   /// Creates a widget that displays a controllable gif.
   ///
@@ -116,6 +116,7 @@ class Gif extends StatefulWidget {
     this.repeat = ImageRepeat.noRepeat,
     this.centerSlice,
     this.matchTextDirection = false,
+    this.useCache = true,
   })  : assert(
           fps == null || duration == null,
           'only one of the two can be set [fps] [duration]',
@@ -295,13 +296,16 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
   Future<void> _loadFrames() async {
     if (!mounted) return;
 
-    GifInfo gif = Gif.cache.caches.containsKey(_getImageKey(widget.image))
-        ? Gif.cache.caches[_getImageKey(widget.image)]!
+    GifInfo gif = widget.useCache
+        ? Gif.cache.caches.containsKey(_getImageKey(widget.image))
+            ? Gif.cache.caches[_getImageKey(widget.image)]!
+            : await _fetchFrames(widget.image)
         : await _fetchFrames(widget.image);
 
     if (!mounted) return;
 
-    Gif.cache.caches.putIfAbsent(_getImageKey(widget.image), () => gif);
+    if (widget.useCache)
+      Gif.cache.caches.putIfAbsent(_getImageKey(widget.image), () => gif);
 
     setState(() {
       _frames = gif.frames;
