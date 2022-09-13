@@ -271,9 +271,11 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
         ? provider.url
         : provider is AssetImage
             ? provider.assetName
-            : provider is MemoryImage
-                ? provider.bytes.toString()
-                : "";
+            : provider is FileImage
+                ? provider.file.path
+                : provider is MemoryImage
+                    ? provider.bytes.toString()
+                    : "";
   }
 
   /// Calculates the [_frameIndex] based on the [AnimationController] value.
