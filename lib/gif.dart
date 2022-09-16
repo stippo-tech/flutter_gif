@@ -8,6 +8,7 @@
 library gif;
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
