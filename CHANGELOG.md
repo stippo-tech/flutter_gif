@@ -1,3 +1,6 @@
+## 2.2.0
+* fixed `FileImage` caching and added `useCache` parameter.
+
 ## 2.1.2
 * fixed `GifController` access after `dispose()`
 
