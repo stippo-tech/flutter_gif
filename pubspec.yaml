@@ -1,6 +1,6 @@
 name: gif
 description: Control a gif using flutter animation controller. You can either specify a fixed duration or set the framerate of the playback.
-version: 2.2.0
+version: 2.3.0
 homepage: https://github.com/pierluigizagaria/flutter_gif
 
 environment:
@@ -9,8 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-dev_dependencies:
+  http: any
 
 flutter:
 
