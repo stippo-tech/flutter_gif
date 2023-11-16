@@ -1,3 +1,6 @@
+## 2.3.0
+* fixed remove instantiateImageCodec method on Flutter 3.16 and warning on Flutter web for using dart:io http client
+
 ## 2.2.0
 * fixed `FileImage` caching and added `useCache` parameter.
 

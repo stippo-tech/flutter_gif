@@ -7,23 +7,15 @@
 
 library gif;
 
-import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart';
 
-final HttpClient _sharedHttpClient = HttpClient()..autoUncompress = false;
+final Client _sharedHttpClient = Client();
 
-HttpClient get _httpClient {
-  HttpClient client = _sharedHttpClient;
-  assert(() {
-    if (debugNetworkImageHttpClientProvider != null) {
-      client = debugNetworkImageHttpClientProvider!();
-    }
-    return true;
-  }());
+Client get _httpClient {
+  Client client = _sharedHttpClient;
   return client;
 }
 
@@ -328,11 +320,11 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
 
     if (provider is NetworkImage) {
       final Uri resolved = Uri.base.resolve(provider.url);
-      final HttpClientRequest request = await _httpClient.getUrl(resolved);
-      provider.headers?.forEach(
-          (String name, String value) => request.headers.add(name, value));
-      final HttpClientResponse response = await request.close();
-      bytes = await consolidateHttpClientResponseBytes(response);
+      final Response response = await _httpClient.get(
+        resolved,
+        headers: provider.headers,
+      );
+      bytes = response.bodyBytes;
     } else if (provider is AssetImage) {
       AssetBundleImageKey key =
           await provider.obtainKey(const ImageConfiguration());
@@ -343,9 +335,10 @@ class _GifState extends State<Gif> with SingleTickerProviderStateMixin {
       bytes = provider.bytes;
     }
 
-    // Removing ! gives compile time error on Flutter 2.5.3
-    // ignore: unnecessary_non_null_assertion
-    Codec codec = await PaintingBinding.instance!.instantiateImageCodec(bytes);
+    final buffer = await ImmutableBuffer.fromUint8List(bytes);
+    Codec codec = await PaintingBinding.instance.instantiateImageCodecWithSize(
+      buffer,
+    );
     List<ImageInfo> infos = [];
     Duration duration = Duration();
 
